@@ -331,23 +331,46 @@
   var MAX_SPEED = 640;
   var RAMP_INTERVAL = 8; // secondes entre deux accélérations
   var RAMP_FACTOR = 1.12;
+  var BALL_SCORE_INTERVAL = 5; // 1 balle en plus tous les 5 points
+  var MAX_BALLS = 5;
 
   var state = {
     running: false,
     paddleX: 0,
-    ballX: 0,
-    ballY: 0,
-    vx: BASE_VX,
-    vy: BASE_VY,
+    balls: [],
     score: 0,
     best: Number(localStorage.getItem('squashSolo.best') || 0),
     leftHeld: false,
     rightHeld: false,
     elapsed: 0,
-    nextRamp: RAMP_INTERVAL
+    nextRamp: RAMP_INTERVAL,
+    nextBallScore: BALL_SCORE_INTERVAL
   };
 
   bestEl.textContent = state.best;
+
+  function makeInitialBall() {
+    return {
+      x: W / 2,
+      y: H / 2,
+      vx: BASE_VX * (Math.random() < 0.5 ? -1 : 1),
+      vy: BASE_VY
+    };
+  }
+
+  function makeExtraBall() {
+    var speed = state.balls.reduce(function (m, b) {
+      return Math.max(m, Math.hypot(b.vx, b.vy));
+    }, BASE_SPEED);
+    var angle = (Math.random() * 2 - 1) * (Math.PI / 4);
+    var dir = Math.random() < 0.5 ? -1 : 1;
+    return {
+      x: W / 2,
+      y: H * 0.3,
+      vx: dir * speed * Math.sin(angle),
+      vy: -Math.abs(speed * Math.cos(angle))
+    };
+  }
 
   function resizeCanvas() {
     var rect = field.getBoundingClientRect();
@@ -359,19 +382,22 @@
     PADDLE_Y = H - 40;
     if (state.running) {
       state.paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, state.paddleX));
-      state.ballX = Math.max(BALL_R, Math.min(W - BALL_R, state.ballX));
-      state.ballY = Math.min(state.ballY, H - BALL_R);
+      state.balls.forEach(function (ball) {
+        ball.x = Math.max(BALL_R, Math.min(W - BALL_R, ball.x));
+        ball.y = Math.min(ball.y, H - BALL_R);
+      });
     } else {
       state.paddleX = W / 2;
-      state.ballX = W / 2;
-      state.ballY = H / 2;
+      state.balls = [makeInitialBall()];
     }
     draw();
   }
 
   function updatePace() {
-    var mult = Math.hypot(state.vx, state.vy) / BASE_SPEED;
-    paceEl.textContent = '×' + mult.toFixed(1);
+    var maxSpeed = state.balls.reduce(function (m, b) {
+      return Math.max(m, Math.hypot(b.vx, b.vy));
+    }, BASE_SPEED);
+    paceEl.textContent = '×' + (maxSpeed / BASE_SPEED).toFixed(1);
   }
 
   function isDark() {
@@ -413,11 +439,13 @@
     ctx.fillStyle = woodDeep;
     ctx.fillRect(state.paddleX - 3, PADDLE_Y + PADDLE_H - 2, 6, 10);
 
-    // ball
-    ctx.beginPath();
+    // balles
     ctx.fillStyle = ink;
-    ctx.arc(state.ballX, state.ballY, BALL_R, 0, Math.PI * 2);
-    ctx.fill();
+    state.balls.forEach(function (ball) {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 
   function roundRect(c, x, y, w, h, r) {
@@ -430,14 +458,12 @@
     c.closePath();
   }
 
-  function resetBall() {
-    state.ballX = W / 2;
-    state.ballY = H / 2;
-    state.vx = BASE_VX * (Math.random() < 0.5 ? -1 : 1);
-    state.vy = BASE_VY;
+  function resetBalls() {
+    state.balls = [makeInitialBall()];
     state.score = 0;
     state.elapsed = 0;
     state.nextRamp = RAMP_INTERVAL;
+    state.nextBallScore = BALL_SCORE_INTERVAL;
     scoreEl.textContent = '0';
     updatePace();
   }
@@ -455,7 +481,7 @@
 
   function startGame() {
     requestFullscreenIfPossible();
-    resetBall();
+    resetBalls();
     state.paddleX = W / 2;
     state.running = true;
     overlay.setAttribute('hidden', '');
@@ -469,7 +495,8 @@
       bestEl.textContent = state.best;
     }
     overlayTitle.textContent = 'Perdu !';
-    overlayText.textContent = 'Score : ' + state.score + '. La balle a touché le sol.';
+    var ballWord = state.balls.length > 1 ? 'Une balle' : 'La balle';
+    overlayText.textContent = 'Score : ' + state.score + '. ' + ballWord + ' a touché le sol.';
     startBtn.textContent = 'Rejouer';
     overlay.removeAttribute('hidden');
   }
@@ -487,51 +514,66 @@
       if (state.rightHeld) state.paddleX += PADDLE_SPEED * dt;
       state.paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, state.paddleX));
 
-      var nx = state.ballX + state.vx * dt;
-      var ny = state.ballY + state.vy * dt;
-
-      if (nx - BALL_R <= 0) { nx = BALL_R; state.vx = Math.abs(state.vx); }
-      else if (nx + BALL_R >= W) { nx = W - BALL_R; state.vx = -Math.abs(state.vx); }
-
-      if (ny - BALL_R <= WALL_H) { ny = BALL_R + WALL_H; state.vy = Math.abs(state.vy); }
-
       var halfPaddle = PADDLE_W / 2;
-      if (state.vy > 0 &&
-          ny + BALL_R >= PADDLE_Y &&
-          ny + BALL_R <= PADDLE_Y + PADDLE_H + 10 &&
-          nx >= state.paddleX - halfPaddle &&
-          nx <= state.paddleX + halfPaddle) {
-        ny = PADDLE_Y - BALL_R;
-        var offset = (nx - state.paddleX) / halfPaddle;
-        var speed = Math.min(MAX_SPEED, Math.hypot(state.vx, state.vy) * 1.05);
-        var angle = offset * (Math.PI / 3);
-        state.vx = speed * Math.sin(angle);
-        state.vy = -Math.abs(speed * Math.cos(angle));
-        state.score += 1;
-        scoreEl.textContent = String(state.score);
-        updatePace();
-        if (state.score > state.best) {
-          state.best = state.score;
-          localStorage.setItem('squashSolo.best', String(state.best));
-          bestEl.textContent = state.best;
-        }
-      }
+      var missed = false;
 
-      if (ny - BALL_R > H) {
+      state.balls.forEach(function (ball) {
+        var nx = ball.x + ball.vx * dt;
+        var ny = ball.y + ball.vy * dt;
+
+        if (nx - BALL_R <= 0) { nx = BALL_R; ball.vx = Math.abs(ball.vx); }
+        else if (nx + BALL_R >= W) { nx = W - BALL_R; ball.vx = -Math.abs(ball.vx); }
+
+        if (ny - BALL_R <= WALL_H) { ny = BALL_R + WALL_H; ball.vy = Math.abs(ball.vy); }
+
+        if (ball.vy > 0 &&
+            ny + BALL_R >= PADDLE_Y &&
+            ny + BALL_R <= PADDLE_Y + PADDLE_H + 10 &&
+            nx >= state.paddleX - halfPaddle &&
+            nx <= state.paddleX + halfPaddle) {
+          ny = PADDLE_Y - BALL_R;
+          var offset = (nx - state.paddleX) / halfPaddle;
+          var speed = Math.min(MAX_SPEED, Math.hypot(ball.vx, ball.vy) * 1.05);
+          var angle = offset * (Math.PI / 3);
+          ball.vx = speed * Math.sin(angle);
+          ball.vy = -Math.abs(speed * Math.cos(angle));
+          state.score += 1;
+          scoreEl.textContent = String(state.score);
+          updatePace();
+          if (state.score > state.best) {
+            state.best = state.score;
+            localStorage.setItem('squashSolo.best', String(state.best));
+            bestEl.textContent = state.best;
+          }
+          if (state.score >= state.nextBallScore && state.balls.length < MAX_BALLS) {
+            state.balls.push(makeExtraBall());
+            state.nextBallScore += BALL_SCORE_INTERVAL;
+            updatePace();
+          }
+        }
+
+        if (ny - BALL_R > H) {
+          missed = true;
+        } else {
+          ball.x = nx;
+          ball.y = ny;
+        }
+      });
+
+      if (missed) {
         endGame();
-      } else {
-        state.ballX = nx;
-        state.ballY = ny;
       }
 
       state.elapsed += dt;
       if (state.elapsed >= state.nextRamp) {
         state.nextRamp += RAMP_INTERVAL;
-        var currentSpeed = Math.hypot(state.vx, state.vy);
-        var boosted = Math.min(MAX_SPEED, currentSpeed * RAMP_FACTOR);
-        var ratio = boosted / currentSpeed;
-        state.vx *= ratio;
-        state.vy *= ratio;
+        state.balls.forEach(function (ball) {
+          var currentSpeed = Math.hypot(ball.vx, ball.vy);
+          var boosted = Math.min(MAX_SPEED, currentSpeed * RAMP_FACTOR);
+          var ratio = boosted / currentSpeed;
+          ball.vx *= ratio;
+          ball.vy *= ratio;
+        });
         updatePace();
       }
     }

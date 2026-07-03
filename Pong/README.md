@@ -5,7 +5,8 @@ les murs (haut, gauche, droite). Tu déplaces la raquette avec les flèches
 **←** / **→** du clavier ou avec la souris. Si la balle passe sous la
 raquette, la partie est perdue et le score est affiché. La balle accélère
 régulièrement (toutes les 8 secondes, affiché dans "Rythme") pour que le jeu
-reste corsé.
+reste corsé, et une balle supplémentaire apparaît tous les 5 points (jusqu'à
+5 balles en même temps) pour corser encore la partie.
 
 Deux versions dans ce dépôt :
 
