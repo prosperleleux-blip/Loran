@@ -19,8 +19,13 @@ Ouvre `web/index.html` directement dans un navigateur (double-clic dessus, ou
 glisse-le dans Chrome/Firefox/Edge). Clique sur "Jouer", puis déplace la
 raquette avec les flèches ← / → de ton clavier ou simplement en bougeant la
 souris au-dessus du terrain — ça marche sur Windows, Linux ou Mac, aucune
-installation nécessaire. Sur mobile/tablette, des boutons ← → apparaissent à
-l'écran à la place du clavier.
+installation nécessaire.
+
+Sur mobile (iPhone/Android), le jeu passe automatiquement en plein écran
+(bord à bord, sans la carte blanche) et se contrôle en glissant un doigt
+n'importe où sur le terrain pour déplacer la raquette. Au tap sur "Jouer",
+le navigateur tente aussi de passer en mode plein écran natif (masque la
+barre du navigateur) quand le système le permet.
 
 ## Lancer le projet iOS (nécessite un Mac)
 

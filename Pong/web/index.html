@@ -1,4 +1,12 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1b1712">
 <title>Squash Solo — pong contre un mur</title>
 <style>
   @font-face {
@@ -84,6 +92,8 @@
     box-shadow: var(--card-shadow);
     overflow: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
   }
 
   .masthead {
@@ -149,11 +159,12 @@
     border: 1px solid var(--line);
     cursor: crosshair;
     touch-action: none;
+    aspect-ratio: 440 / 620;
   }
   canvas {
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
     background: var(--wall);
   }
 
@@ -231,27 +242,33 @@
     color: var(--ink);
   }
 
-  .touch-controls {
-    display: none;
-    gap: 10px;
-    padding: 0 22px 22px;
-  }
-  .touch-controls button {
-    flex: 1;
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid var(--line);
-    background: var(--wood);
-    color: #241a0f;
-    font-family: 'Oswald', sans-serif;
-    font-weight: 600;
-    font-size: 18px;
-    cursor: pointer;
-  }
+  .hint-touch { display: none; }
+
   @media (hover: none) and (pointer: coarse) {
-    .touch-controls { display: flex; }
+    html, body { height: 100%; }
+    body { padding: 0; align-items: stretch; justify-content: stretch; }
+    .court {
+      width: 100vw;
+      max-width: none;
+      height: 100dvh;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .masthead { padding-top: max(18px, env(safe-area-inset-top)); }
+    .field {
+      flex: 1;
+      margin: 0;
+      border-radius: 0;
+      border: none;
+      aspect-ratio: auto;
+    }
+    .signage { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .keys.hide-touch { display: none; }
+    .hint-touch { display: inline; }
   }
 </style>
+</head>
+<body>
 
 <main class="court">
   <header class="masthead">
@@ -277,7 +294,7 @@
   </div>
 
   <div class="field">
-    <canvas id="game" width="440" height="620" aria-label="Aire de jeu du squash solo"></canvas>
+    <canvas id="game" aria-label="Aire de jeu du squash solo — glisse un doigt ici pour jouer"></canvas>
     <div class="overlay" id="overlay">
       <h2 id="overlay-title">Prêt à jouer&nbsp;?</h2>
       <p id="overlay-text">La balle rebondit sur le mur du fond et les côtés. Renvoie-la avec ta raquette avant qu'elle ne touche le sol.</p>
@@ -286,13 +303,9 @@
   </div>
 
   <p class="signage">
-    <span class="keys">Déplacer la raquette&nbsp;: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> ou la souris</span>
+    <span class="keys hide-touch">Déplacer la raquette&nbsp;: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> ou la souris</span>
+    <span class="hint-touch">Glisse un doigt n'importe où sur le terrain pour déplacer la raquette</span>
   </p>
-
-  <div class="touch-controls">
-    <button id="left-btn" type="button" aria-label="Déplacer la raquette à gauche">&larr;</button>
-    <button id="right-btn" type="button" aria-label="Déplacer la raquette à droite">&rarr;</button>
-  </div>
 </main>
 
 <script>
@@ -307,12 +320,11 @@
   var overlayTitle = document.getElementById('overlay-title');
   var overlayText = document.getElementById('overlay-text');
   var startBtn = document.getElementById('start-btn');
-  var leftBtn = document.getElementById('left-btn');
-  var rightBtn = document.getElementById('right-btn');
 
-  var W = canvas.width, H = canvas.height;
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var W = 0, H = 0;
   var WALL_H = 10;
-  var PADDLE_W = 92, PADDLE_H = 16, PADDLE_Y = H - 40;
+  var PADDLE_W = 92, PADDLE_H = 16, PADDLE_Y = 0;
   var BALL_R = 9;
   var BASE_VX = 190, BASE_VY = -230;
   var BASE_SPEED = Math.hypot(BASE_VX, BASE_VY);
@@ -322,9 +334,9 @@
 
   var state = {
     running: false,
-    paddleX: W / 2,
-    ballX: W / 2,
-    ballY: H / 2,
+    paddleX: 0,
+    ballX: 0,
+    ballY: 0,
     vx: BASE_VX,
     vy: BASE_VY,
     score: 0,
@@ -336,6 +348,26 @@
   };
 
   bestEl.textContent = state.best;
+
+  function resizeCanvas() {
+    var rect = field.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    PADDLE_Y = H - 40;
+    if (state.running) {
+      state.paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, state.paddleX));
+      state.ballX = Math.max(BALL_R, Math.min(W - BALL_R, state.ballX));
+      state.ballY = Math.min(state.ballY, H - BALL_R);
+    } else {
+      state.paddleX = W / 2;
+      state.ballX = W / 2;
+      state.ballY = H / 2;
+    }
+    draw();
+  }
 
   function updatePace() {
     var mult = Math.hypot(state.vx, state.vy) / BASE_SPEED;
@@ -410,7 +442,19 @@
     updatePace();
   }
 
+  function requestFullscreenIfPossible() {
+    var el = document.documentElement;
+    var request = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (request) {
+      try {
+        var result = request.call(el);
+        if (result && result.catch) result.catch(function () {});
+      } catch (err) {}
+    }
+  }
+
   function startGame() {
+    requestFullscreenIfPossible();
     resetBall();
     state.paddleX = W / 2;
     state.running = true;
@@ -512,19 +556,18 @@
     state.paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, x));
   });
 
-  function bindHold(el, prop) {
-    var set = function (v) { return function (e) { e.preventDefault(); state[prop] = v; }; };
-    el.addEventListener('pointerdown', set(true));
-    el.addEventListener('pointerup', set(false));
-    el.addEventListener('pointerleave', set(false));
-    el.addEventListener('pointercancel', set(false));
-  }
-  bindHold(leftBtn, 'leftHeld');
-  bindHold(rightBtn, 'rightHeld');
-
   startBtn.addEventListener('click', startGame);
 
-  draw();
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', resizeCanvas);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resizeCanvas);
+  }
+
+  resizeCanvas();
   requestAnimationFrame(tick);
 })();
+
 </script>
+</body>
+</html>
