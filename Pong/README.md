@@ -2,8 +2,10 @@
 
 Petit jeu : une raquette en bas de l'écran renvoie une balle qui rebondit sur
 les murs (haut, gauche, droite). Tu déplaces la raquette avec les flèches
-**←** et **→** du clavier. Si la balle passe sous la raquette, la partie est
-perdue et le score est affiché.
+**←** / **→** du clavier ou avec la souris. Si la balle passe sous la
+raquette, la partie est perdue et le score est affiché. La balle accélère
+régulièrement (toutes les 8 secondes, affiché dans "Rythme") pour que le jeu
+reste corsé.
 
 Deux versions dans ce dépôt :
 
@@ -14,8 +16,9 @@ Deux versions dans ce dépôt :
 ## Tester sans Mac (version web)
 
 Ouvre `web/index.html` directement dans un navigateur (double-clic dessus, ou
-glisse-le dans Chrome/Firefox/Edge). Clique sur "Jouer", puis utilise les
-flèches ← / → de ton clavier — ça marche sur Windows, Linux ou Mac, aucune
+glisse-le dans Chrome/Firefox/Edge). Clique sur "Jouer", puis déplace la
+raquette avec les flèches ← / → de ton clavier ou simplement en bougeant la
+souris au-dessus du terrain — ça marche sur Windows, Linux ou Mac, aucune
 installation nécessaire. Sur mobile/tablette, des boutons ← → apparaissent à
 l'écran à la place du clavier.
 

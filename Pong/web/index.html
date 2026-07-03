@@ -147,6 +147,8 @@
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid var(--line);
+    cursor: crosshair;
+    touch-action: none;
   }
   canvas {
     display: block;
@@ -268,6 +270,10 @@
       <span class="label">Meilleur</span>
       <span class="value accent" id="best">0</span>
     </div>
+    <div class="cell">
+      <span class="label">Rythme</span>
+      <span class="value" id="pace">×1.0</span>
+    </div>
   </div>
 
   <div class="field">
@@ -280,7 +286,7 @@
   </div>
 
   <p class="signage">
-    <span class="keys">Déplacer la raquette&nbsp;: <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span>
+    <span class="keys">Déplacer la raquette&nbsp;: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> ou la souris</span>
   </p>
 
   <div class="touch-controls">
@@ -293,8 +299,10 @@
 (function () {
   var canvas = document.getElementById('game');
   var ctx = canvas.getContext('2d');
+  var field = document.querySelector('.field');
   var scoreEl = document.getElementById('score');
   var bestEl = document.getElementById('best');
+  var paceEl = document.getElementById('pace');
   var overlay = document.getElementById('overlay');
   var overlayTitle = document.getElementById('overlay-title');
   var overlayText = document.getElementById('overlay-text');
@@ -306,22 +314,33 @@
   var WALL_H = 10;
   var PADDLE_W = 92, PADDLE_H = 16, PADDLE_Y = H - 40;
   var BALL_R = 9;
+  var BASE_VX = 190, BASE_VY = -230;
+  var BASE_SPEED = Math.hypot(BASE_VX, BASE_VY);
   var MAX_SPEED = 640;
+  var RAMP_INTERVAL = 8; // secondes entre deux accélérations
+  var RAMP_FACTOR = 1.12;
 
   var state = {
     running: false,
     paddleX: W / 2,
     ballX: W / 2,
     ballY: H / 2,
-    vx: 190,
-    vy: -230,
+    vx: BASE_VX,
+    vy: BASE_VY,
     score: 0,
     best: Number(localStorage.getItem('squashSolo.best') || 0),
     leftHeld: false,
-    rightHeld: false
+    rightHeld: false,
+    elapsed: 0,
+    nextRamp: RAMP_INTERVAL
   };
 
   bestEl.textContent = state.best;
+
+  function updatePace() {
+    var mult = Math.hypot(state.vx, state.vy) / BASE_SPEED;
+    paceEl.textContent = '×' + mult.toFixed(1);
+  }
 
   function isDark() {
     return getComputedStyle(document.documentElement).colorScheme === 'dark';
@@ -382,10 +401,13 @@
   function resetBall() {
     state.ballX = W / 2;
     state.ballY = H / 2;
-    state.vx = 190 * (Math.random() < 0.5 ? -1 : 1);
-    state.vy = -230;
+    state.vx = BASE_VX * (Math.random() < 0.5 ? -1 : 1);
+    state.vy = BASE_VY;
     state.score = 0;
+    state.elapsed = 0;
+    state.nextRamp = RAMP_INTERVAL;
     scoreEl.textContent = '0';
+    updatePace();
   }
 
   function startGame() {
@@ -443,6 +465,7 @@
         state.vy = -Math.abs(speed * Math.cos(angle));
         state.score += 1;
         scoreEl.textContent = String(state.score);
+        updatePace();
         if (state.score > state.best) {
           state.best = state.score;
           localStorage.setItem('squashSolo.best', String(state.best));
@@ -455,6 +478,17 @@
       } else {
         state.ballX = nx;
         state.ballY = ny;
+      }
+
+      state.elapsed += dt;
+      if (state.elapsed >= state.nextRamp) {
+        state.nextRamp += RAMP_INTERVAL;
+        var currentSpeed = Math.hypot(state.vx, state.vy);
+        var boosted = Math.min(MAX_SPEED, currentSpeed * RAMP_FACTOR);
+        var ratio = boosted / currentSpeed;
+        state.vx *= ratio;
+        state.vy *= ratio;
+        updatePace();
       }
     }
 
@@ -470,6 +504,12 @@
   window.addEventListener('keyup', function (e) {
     if (e.key === 'ArrowLeft') state.leftHeld = false;
     else if (e.key === 'ArrowRight') state.rightHeld = false;
+  });
+
+  field.addEventListener('pointermove', function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var x = (e.clientX - rect.left) * (W / rect.width);
+    state.paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, x));
   });
 
   function bindHold(el, prop) {
