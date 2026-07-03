@@ -1,11 +1,25 @@
 # Pong contre un mur
 
-Petit jeu iOS en SwiftUI : une raquette en bas de l'écran renvoie une balle qui
-rebondit sur les murs (haut, gauche, droite). Tu déplaces la raquette avec les
-flèches **←** et **→** du clavier. Si la balle passe sous la raquette, la
-partie est perdue et le score est affiché.
+Petit jeu : une raquette en bas de l'écran renvoie une balle qui rebondit sur
+les murs (haut, gauche, droite). Tu déplaces la raquette avec les flèches
+**←** et **→** du clavier. Si la balle passe sous la raquette, la partie est
+perdue et le score est affiché.
 
-## Lancer le projet
+Deux versions dans ce dépôt :
+
+- `web/index.html` — version jouable dans n'importe quel navigateur, **sans
+  Mac ni Xcode**. C'est la plus simple pour tester tout de suite.
+- `Pong/` — la version native iOS (SwiftUI), qui nécessite un Mac + Xcode.
+
+## Tester sans Mac (version web)
+
+Ouvre `web/index.html` directement dans un navigateur (double-clic dessus, ou
+glisse-le dans Chrome/Firefox/Edge). Clique sur "Jouer", puis utilise les
+flèches ← / → de ton clavier — ça marche sur Windows, Linux ou Mac, aucune
+installation nécessaire. Sur mobile/tablette, des boutons ← → apparaissent à
+l'écran à la place du clavier.
+
+## Lancer le projet iOS (nécessite un Mac)
 
 1. Ouvre `Pong.xcodeproj` avec Xcode (15 ou plus récent).
 2. Choisis un simulateur iPhone ou iPad comme destination.
