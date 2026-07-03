@@ -2,11 +2,12 @@
 
 Petit jeu : une raquette en bas de l'écran renvoie une balle qui rebondit sur
 les murs (haut, gauche, droite). Tu déplaces la raquette avec les flèches
-**←** / **→** du clavier ou avec la souris. Si la balle passe sous la
-raquette, la partie est perdue et le score est affiché. La balle accélère
-régulièrement (toutes les 8 secondes, affiché dans "Rythme") pour que le jeu
-reste corsé, et une balle supplémentaire apparaît tous les 5 points (jusqu'à
-5 balles en même temps) pour corser encore la partie.
+**←** / **→** du clavier ou avec la souris. La balle accélère régulièrement
+(toutes les 8 secondes, affiché dans "Rythme") et une balle supplémentaire
+apparaît tous les 5 points (jusqu'à 5 balles en même temps) pour corser la
+partie. Tu ne perds que lorsque la **dernière** balle touche le sol.
+
+À chaque balle rattrapée, un fragment de l'écusson du Stade Toulousain (redessiné en vectoriel) se dévoile en fond de terrain, dans une case aléatoire non contiguë — l'écusson est entièrement révélé à 30 points.
 
 Deux versions dans ce dépôt :
 

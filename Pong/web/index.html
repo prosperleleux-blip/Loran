@@ -297,7 +297,7 @@
     <canvas id="game" aria-label="Aire de jeu du squash solo — glisse un doigt ici pour jouer"></canvas>
     <div class="overlay" id="overlay">
       <h2 id="overlay-title">Prêt à jouer&nbsp;?</h2>
-      <p id="overlay-text">La balle rebondit sur le mur du fond et les côtés. Renvoie-la avec ta raquette avant qu'elle ne touche le sol.</p>
+      <p id="overlay-text">La balle rebondit sur le mur du fond et les côtés. Tous les 5 points, une balle supplémentaire apparaît. Tu perds quand la dernière balle touche le sol.</p>
       <button id="start-btn" type="button">Jouer</button>
     </div>
   </div>
@@ -333,6 +333,18 @@
   var RAMP_FACTOR = 1.12;
   var BALL_SCORE_INTERVAL = 5; // 1 balle en plus tous les 5 points
   var MAX_BALLS = 5;
+  var CREST_GRID_COLS = 5, CREST_GRID_ROWS = 6;
+  var CREST_MAX_SCORE = CREST_GRID_COLS * CREST_GRID_ROWS; // decouverte complete a 30 points
+
+  function shuffledIndices(n) {
+    var arr = [];
+    for (var i = 0; i < n; i++) arr.push(i);
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
 
   var state = {
     running: false,
@@ -344,7 +356,8 @@
     rightHeld: false,
     elapsed: 0,
     nextRamp: RAMP_INTERVAL,
-    nextBallScore: BALL_SCORE_INTERVAL
+    nextBallScore: BALL_SCORE_INTERVAL,
+    revealOrder: shuffledIndices(CREST_MAX_SCORE)
   };
 
   bestEl.textContent = state.best;
@@ -404,6 +417,89 @@
     return getComputedStyle(document.documentElement).colorScheme === 'dark';
   }
 
+  function drawCrest(c, x, y, w, h, colors) {
+    var vbW = 100, vbH = 112;
+    var scale = Math.min(w / vbW, h / vbH);
+    var offX = x + (w - vbW * scale) / 2;
+    var offY = y + (h - vbH * scale) / 2;
+
+    c.save();
+    c.translate(offX, offY);
+    c.scale(scale, scale);
+
+    // bouclier
+    c.beginPath();
+    c.moveTo(50, 4);
+    c.bezierCurveTo(66, 1, 84, 6, 93, 15);
+    c.bezierCurveTo(97, 42, 95, 66, 84, 84);
+    c.bezierCurveTo(75, 98, 61, 108, 50, 111);
+    c.bezierCurveTo(39, 108, 25, 98, 16, 84);
+    c.bezierCurveTo(5, 66, 3, 42, 7, 15);
+    c.bezierCurveTo(16, 6, 34, 1, 50, 4);
+    c.closePath();
+    c.fillStyle = colors.wall;
+    c.fill();
+    c.lineWidth = 3;
+    c.strokeStyle = colors.ink;
+    c.stroke();
+
+    c.save();
+    c.clip();
+
+    // barre et hampe du T
+    c.fillStyle = colors.ink;
+    c.beginPath();
+    c.moveTo(24, 20);
+    c.lineTo(76, 20);
+    c.lineTo(76, 34);
+    c.lineTo(58, 34);
+    c.lineTo(58, 96);
+    c.lineTo(42, 96);
+    c.lineTo(42, 34);
+    c.lineTo(24, 34);
+    c.closePath();
+    c.fill();
+
+    function hook(cx, cy, r, dir) {
+      c.beginPath();
+      c.arc(cx, cy, r, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.moveTo(cx, cy - r);
+      c.quadraticCurveTo(cx + dir * r * 2.2, cy - r * 0.4, cx + dir * r * 1.1, cy + r * 1.6);
+      c.quadraticCurveTo(cx + dir * r * 0.4, cy + r * 0.6, cx, cy + r * 0.2);
+      c.closePath();
+      c.fill();
+    }
+    hook(24, 27, 6, -1);
+    hook(76, 27, 6, 1);
+
+    // ruban rouge en S tisse dans la hampe
+    c.strokeStyle = colors.red;
+    c.lineWidth = 15;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    c.beginPath();
+    c.moveTo(70, 30);
+    c.bezierCurveTo(40, 34, 26, 46, 40, 56);
+    c.bezierCurveTo(54, 66, 66, 62, 62, 74);
+    c.bezierCurveTo(58, 86, 42, 92, 30, 94);
+    c.stroke();
+
+    c.lineWidth = 9;
+    c.beginPath();
+    c.moveTo(70, 30);
+    c.quadraticCurveTo(78, 26, 74, 20);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(30, 94);
+    c.quadraticCurveTo(22, 98, 26, 104);
+    c.stroke();
+
+    c.restore();
+    c.restore();
+  }
+
   function draw() {
     var styles = getComputedStyle(document.documentElement);
     var wall = styles.getPropertyValue('--wall').trim();
@@ -415,6 +511,24 @@
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = wall;
     ctx.fillRect(0, 0, W, H);
+
+    // decouverte progressive de l'ecusson, par cases non contigues
+    var revealedCount = Math.min(state.score, CREST_MAX_SCORE);
+    if (revealedCount > 0 && state.revealOrder.length) {
+      var cellW = W / CREST_GRID_COLS;
+      var cellH = H / CREST_GRID_ROWS;
+      ctx.save();
+      ctx.beginPath();
+      for (var i = 0; i < revealedCount; i++) {
+        var idx = state.revealOrder[i];
+        var col = idx % CREST_GRID_COLS;
+        var row = Math.floor(idx / CREST_GRID_COLS);
+        ctx.rect(col * cellW, row * cellH, cellW + 0.5, cellH + 0.5);
+      }
+      ctx.clip();
+      drawCrest(ctx, 0, 0, W, H, { wall: wall, ink: ink, red: red });
+      ctx.restore();
+    }
 
     // back wall out-line
     ctx.fillStyle = red;
@@ -464,6 +578,7 @@
     state.elapsed = 0;
     state.nextRamp = RAMP_INTERVAL;
     state.nextBallScore = BALL_SCORE_INTERVAL;
+    state.revealOrder = shuffledIndices(CREST_MAX_SCORE);
     scoreEl.textContent = '0';
     updatePace();
   }
@@ -495,8 +610,7 @@
       bestEl.textContent = state.best;
     }
     overlayTitle.textContent = 'Perdu !';
-    var ballWord = state.balls.length > 1 ? 'Une balle' : 'La balle';
-    overlayText.textContent = 'Score : ' + state.score + '. ' + ballWord + ' a touché le sol.';
+    overlayText.textContent = 'Score : ' + state.score + '. La dernière balle a touché le sol.';
     startBtn.textContent = 'Rejouer';
     overlay.removeAttribute('hidden');
   }
@@ -515,7 +629,8 @@
       state.paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, state.paddleX));
 
       var halfPaddle = PADDLE_W / 2;
-      var missed = false;
+      var remainingBalls = [];
+      var newBalls = [];
 
       state.balls.forEach(function (ball) {
         var nx = ball.x + ball.vx * dt;
@@ -545,22 +660,25 @@
             localStorage.setItem('squashSolo.best', String(state.best));
             bestEl.textContent = state.best;
           }
-          if (state.score >= state.nextBallScore && state.balls.length < MAX_BALLS) {
-            state.balls.push(makeExtraBall());
+          if (state.score >= state.nextBallScore && state.balls.length + newBalls.length < MAX_BALLS) {
+            newBalls.push(makeExtraBall());
             state.nextBallScore += BALL_SCORE_INTERVAL;
             updatePace();
           }
         }
 
         if (ny - BALL_R > H) {
-          missed = true;
+          // balle perdue : elle ne rejoint pas remainingBalls
         } else {
           ball.x = nx;
           ball.y = ny;
+          remainingBalls.push(ball);
         }
       });
 
-      if (missed) {
+      state.balls = remainingBalls.concat(newBalls);
+
+      if (state.balls.length === 0) {
         endGame();
       }
 
